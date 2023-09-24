@@ -1,7 +1,3 @@
-
-<!--var sum = Object.values(counts).reduce(function(a, b) { return a + b; }, 0);
-            const prob = (max/sum)*100; -->
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -10,111 +6,156 @@
     <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
-    <h1>Data Viewer</h1>
+    <h1>Data Viewer
+        <span class="infoButton">ⓘ
+            <span class="tooltipText">
+                You can Flag samples using Ctrl + Click.
+                <br>
+                Then use the Console (flaggedSamples variable).
+            </span>
+        </span>    
+    </h1>
     <div id="inputContainer">
         <div id="predictedLabelContainer"></div>
     </div>
-    <div id="chartContainer"></div>
+    <div id="chartContainer">
+        <div id="confusionContainer"></div>
+        <canvas id="networkCanvas"></canvas>
+    </div>
     <div id="controlPanel">
-        <button id="toggleBtn" onClick="toggleInput()">
-        Toggle Input</button>
+        <button onClick="toggleInput()">Toggle Input</button>
+        <button onClick="toggleOutput()">Toggle output</button>
         <div id="statistics"></div></div>
     <div id="container"></div>
 
-    <script src="../common/js_objects/features.js"></script>
-    <script src="../common/js_objects/minMax.js"></script>
+    
+    <script src="../data/dataset/model.js"></script>
     <script src="../data/dataset/training.js"></script>
     <script src="../data/dataset/testing.js"></script>
 
     <script src="../common/constants.js"></script>
     <script src="../common/utils.js"></script>
-    <script src="../common/draw.js"></script>\
+    <script src="../common/network.js"></script>
+    <script src="../common/geometry.js"></script>
+    <script src="../common/draw.js"></script>
+    <script src="../common/js_objects/minMax.js"></script>
     <script src="../common/featureFuncs.js"></script>
     <script src="../common/classifiers/knn.js"></script>
+    <script src="../common/classifiers/mlp.js"></script>
 
     <script src="js/display.js"></script>
     <script src="js/sketchPad.js"></script>
+    <script src="js/dataCleaner.js"></script>
+    <script src="js/visualizer.js"></script>
     
     <script src="./javascript_chart/graphics.js"></script>
     <script src="./javascript_chart/math.js"></script>
     <script src="./javascript_chart/chart.js"></script>
+    <script src="./javascript_chart/confusion.js"></script>
     
     <script>
-        const {samples,featureNames}=features;
-        const trainingSamples=training.samples;
-        const testingSamples=testing.samples;
-        
-        const k=50;
-        const knn=new KNN(trainingSamples,k);
-        let correctCount=0;
-        let totalCount=0;
-        for(const testSample of testingSamples){
-            testSample.truth=testSample.label;
-            testSample.label="?";
-            const {label}=knn.predict(testSample.point);
-            testSample.label=label;
-            testSample.correct=testSample.label==testSample.truth;
-            totalCount++;
-            correctCount+=testSample.correct?1:0;
-        }
+        const featureNames = training.featureNames;
+        const trainingSamples = training.samples;
+        const testingSamples = testing.samples;
 
-        statistics.innerHTML="<b>ACCURACY</b><br>"+
-            correctCount+"/"+totalCount+" ("+
-            utils.formatPercent(correctCount/totalCount)+
+        // Classifying the testing samples
+        //const knn = new KNN(trainingSamples);
+        const mlp = new MLP([], []);
+        mlp.load(model);
+
+        networkCanvas.width = 500;
+        networkCanvas.height = 500;
+        const networkCtx = networkCanvas.getContext("2d");
+
+        let correctCount = 0;
+        let totalCount = 0;
+        for (const testSample of testingSamples) {
+            testSample.truth = testSample.label;
+            testSample.label = "?";
+            //const { label, nearestSamples } = knn.predict(testSample.point);
+            const { label, nearestSamples } = mlp.predict(testSample.point);
+            testSample.label = label;
+            testSample.nearestSamples = nearestSamples;
+            testSample.correct = testSample.label == testSample.truth;
+            totalCount++;
+            correctCount += testSample.correct ? 1 : 0;
+        }
+        statistics.innerHTML =
+            "<b>ACCURACY</b><br>" +
+            correctCount +
+            "/" +
+            totalCount +
+            " (" +
+            utils.formatPercent(correctCount / totalCount) +
             ")";
 
-        const trainingGroups=utils.groupBy(trainingSamples,"partic_id");
+        // Displaying the data grid
+        const trainingGroups=utils.groupBy(trainingSamples, "partic_id");
         for(let partic_id in trainingGroups){
-            const samples=trainingGroups[partic_id];
-            const particName=samples[0].partic_name;
-            createRow(container,particName,samples);
+            const samples = trainingGroups[partic_id];
+            const particName = samples[0].partic_name;
+            createRow(container, particName, samples);
         }
 
         const subtitle=document.createElement("h2");
-        subtitle.innerHTML="TESTING";
+        subtitle.innerHTML = "TESTING";
         container.appendChild(subtitle);
 
-        const testingGroups=utils.groupBy(testingSamples,"partic_id");
+        const testingGroups=utils.groupBy(testingSamples, "partic_id");
         for(let partic_id in testingGroups){
-            const samples=testingGroups[partic_id];
-            const particName=samples[0].partic_name;
-            createRow(container,particName,samples);
+            const samples = testingGroups[partic_id];
+            const particName = samples[0].partic_name;
+            createRow(container, particName, samples);
         }
 
+        // Initializing the Chart
         const options={
-            size:500,
-            axesLabels:featureNames,
-            styles:utils.styles,
-            transparency:0.7,
-            icon:"image",
-            bg:new Image()
+            size: 500,
+            axesLabels: featureNames,
+            styles: utils.styles,
+            transparency: 0.7,
+            icon: "image",
+            bg: new Image()
         };
-        options.bg.src=constants.DICISION_BOUNDARY;
+        
+        options.bg.src = constants.DECISION_BOUNDARY;
         graphics.generateImages(utils.styles);
 
-        const chart=new Chart(
+        const chart = new Chart(
             chartContainer,
             trainingSamples,
             options,
             handleClick
         );
 
-        const sketchPad=
-            new SketchPad(inputContainer,onDrawingUpdate);
-        sketchPad.canvas.style.cssText+=
-            "outline:10000px solid rgba(0,0,0,0.7);"
+        const confusion = new Confusion(
+            confusionContainer,
+            testingSamples,
+            utils.classes,
+            options
+        )
+
+        const outputLabels = Object.values(utils.styles)
+            .map((s) => s.image);
+
+        // Initializing the Sketch Pad
+        const sketchPad =
+            new SketchPad(inputContainer, onDrawingUpdate);
+        sketchPad.canvas.style.cssText +=
+            "outline:10000px solid rgba(0, 0, 0, 0.7);"
         toggleInput();
 
-        function onDrawingUpdate(paths){
-            const functions=featureFuncs.inUse.map(f=>f.function);
-            point=functions.map(f=>f(paths));
-            utils.normalizePoints([point],minMax);
-            const {label,nearestSamples}=knn.predict(point);
-            predictedLabelContainer.innerHTML=
-                "Is it a "+label+" ?";
-            chart.showDynamicPoint(point,label,nearestSamples);
+        function onDrawingUpdate(paths) {
+            const functions = featureFuncs.inUse.map((f) => f.function);
+            //point = functions.map((f) => f(paths));
+            point = functions[0](paths);
+            utils.normalizePoints([point], minMax);
+            // const { label, nearestSamples } = kNN.predict(point);
+            const { label, nearestSamples } = mlp.predict(point);
+            Visualizer.drawNetwork(networkCtx, mlp.network, outputLabels);
+            predictedLabelContainer.innerHTML = "Is it a " + label + " ?";
+            chart.showDynamicPoint(point, label, nearestSamples);
         }
-
     </script>
 </body>
 </html>

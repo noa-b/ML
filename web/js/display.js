@@ -13,8 +13,15 @@ function createRow(container,studentName,samples){
     
         const sampleContainer=document.createElement("div");
         sampleContainer.id="sample_"+id;
-        sampleContainer.onclick=()=>
-            handleClick(sample,false);
+        sampleContainer.onclick=(evt)=>{
+            if(evt.ctrlKey){
+                toggleFlaggedSample(sample);
+            }   else{
+                handleClick(sample,false);
+            }
+            
+        }
+            
         sampleContainer.classList.add("sampleContainer");
         if(correct){
             sampleContainer.style.backgroundColor="lightgreen";
@@ -63,12 +70,24 @@ function handleClick(sample,doScroll=true){
     chart.selectSample(sample);
 }
 
-function toggleInput(){
-    if(inputContainer.style.display=="none"){
-        inputContainer.style.display="block";
+function toggleInput() {
+    if (inputContainer.style.display == "none") {
+        inputContainer.style.display = "block";
         sketchPad.triggerUpdate();
-    }else{
-        inputContainer.style.display="none";
+    } else {
+        inputContainer.style.display = "none";
         chart.hideDynamicPoint();
+    }
+}
+
+function toggleOutput() {
+    if (networkCanvas.style.display == "") {
+        networkCanvas.style.display = "none";
+        confusionContainer.style.display = "";
+    } else if (confusionContainer.style.display == "") {
+        confusionContainer.style.display = "none";
+    } else {
+        confusionContainer.style.display = "";
+        networkCanvas.style.display = "";
     }
 }

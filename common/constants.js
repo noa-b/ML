@@ -19,7 +19,12 @@ constants.FEATURES_JS=constants.JS_OBJECTS+"/features.js";
 constants.MIN_MAX_JS=constants.JS_OBJECTS+"/minMax.js";
 constants.TRAINING_JS=constants.DATASET_DIR+"/training.js";
 constants.TESTING_JS=constants.DATASET_DIR+"/testing.js";
-constants.DICISION_BOUNDARY=constants.DATASET_DIR+"/dicision_boundery.png";
+constants.MODEL_JS=constants.DATASET_DIR+"/model.js";
+constants.DECISION_BOUNDARY=constants.DATASET_DIR+"/dicision_boundery.png";
+constants.MODEL=constants.DATASET_DIR+"/model.json";
+
+
+
 
 if(typeof module!=='undefined'){
 module.exports=constants;
